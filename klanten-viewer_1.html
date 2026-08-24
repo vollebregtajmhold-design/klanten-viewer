@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Klanten Viewer</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --blue-dark:#3b5a86;
+    --blue:#4a6fa5;
+    --blue-light:#eef3fa;
+    --blue-lighter:#f6f9fc;
+    --red:#c0392b;
+    --border:#d8e0ea;
+    --text:#1f2937;
+    --text-muted:#6b7280;
+    --bg:#ffffff;
+    --bg-page:#f4f6f9;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg-page);
+    color:var(--text);
+    padding:8px;
+    padding-bottom:30px;
+  }
+  .card{
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+  }
+  #menuRegion .card{
+    padding:8px 10px;
+    margin-bottom:6px;
+  }
+  .card h2{
+    font-size:0.8rem;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    color:var(--text-muted);
+    margin:0 0 6px;
+  }
+  .card h2 .klant-label{
+    text-transform:none;
+    letter-spacing:normal;
+    font-weight:700;
+    color:var(--blue-dark);
+    margin-left:8px;
+    font-size:0.85rem;
+  }
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  button{
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    border-radius:7px;
+    padding:8px 12px;
+    font-size:0.88rem;
+    cursor:pointer;
+  }
+  button.secondary{
+    background:var(--bg);
+    color:var(--blue-dark);
+    border:1px solid var(--blue);
+  }
+  button:active{opacity:.85;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  input[type=file]{display:none;}
+  .drop-zone{
+    border:2px dashed var(--border);
+    border-radius:8px;
+    padding:10px;
+    text-align:center;
+    color:var(--text-muted);
+    font-size:0.82rem;
+    margin-top:8px;
+  }
+  .drop-zone.drag{
+    border-color:var(--blue);
+    background:var(--blue-light);
+  }
+  textarea{
+    width:100%;
+    min-height:110px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:0.8rem;
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:8px;
+    resize:vertical;
+  }
+  .hidden{display:none !important;}
+  .small-note{font-size:0.76rem;color:var(--text-muted);margin-top:4px;}
+  .cache-info{
+    font-size:0.8rem;
+    background:var(--blue-lighter);
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:6px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  /* mapping */
+  .map-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:8px;
+  }
+  .map-field label{
+    display:block;
+    font-size:0.75rem;
+    color:var(--text-muted);
+    margin-bottom:2px;
+  }
+  select{
+    width:100%;
+    padding:6px 8px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    font-size:0.85rem;
+    background:#fff;
+    color:var(--text);
+  }
+  .map-error{color:var(--red);font-size:0.8rem;margin-top:8px;}
+
+  /* top bar / filter toggle */
+  .top-bar{
+    display:flex;
+    justify-content:flex-start;
+    margin-bottom:6px;
+  }
+  .menu-toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:7px 12px;
+    border-radius:8px;
+    font-size:0.85rem;
+  }
+  .menu-toggle:disabled{opacity:.45;cursor:not-allowed;}
+  .menu-toggle .chevron{
+    display:inline-block;
+    transition:transform .15s ease;
+    font-size:0.75rem;
+  }
+  .menu-toggle.open .chevron{transform:rotate(90deg);}
+
+  /* filters */
+  .filters{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .filters label{
+    display:block;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    color:var(--text-muted);
+    margin-bottom:2px;
+    font-weight:600;
+  }
+  .search-box input[type=text]{
+    width:100%;
+    padding:7px 8px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    font-size:0.85rem;
+  }
+  .week-range-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .week-range-row select{flex:1;}
+  .week-range-row .week-sep{
+    font-size:0.8rem;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .week-total-toggle{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.8rem;
+    color:var(--text-muted);
+    margin-top:8px;
+    cursor:pointer;
+  }
+
+  /* table */
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:8px;
+    border-left:4px solid var(--red);
+    background:#fff;
+    -webkit-overflow-scrolling:touch;
+  }
+  table{
+    border-collapse:collapse;
+    width:auto;
+    font-size:0.85rem;
+  }
+  thead th{
+    background:var(--blue);
+    color:#fff;
+    font-weight:600;
+    padding:8px 10px;
+    text-align:center;
+    white-space:nowrap;
+    position:sticky;
+    top:0;
+    z-index:2;
+  }
+  thead tr.week-row th{
+    background:var(--blue-dark);
+    top:0;
+  }
+  th.corner{
+    position:sticky;
+    left:0;
+    top:0;
+    z-index:4;
+    background:var(--blue-dark);
+  }
+  tbody th{
+    position:sticky;
+    left:0;
+    z-index:1;
+    background:var(--blue-lighter);
+    text-align:left;
+    padding:7px 10px;
+    white-space:nowrap;
+    font-weight:500;
+    color:var(--blue-dark);
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border);
+  }
+  tbody tr:nth-child(even) th{background:#eef3fa;}
+  tbody td{
+    padding:7px 10px;
+    text-align:center;
+    border-bottom:1px solid var(--border);
+    color:var(--text);
+    white-space:nowrap;
+  }
+  tbody td.empty{color:#b7c0cc;}
+  thead th.total-col{background:var(--blue-dark);}
+  tbody td.total-col{background:var(--blue-lighter);font-weight:700;color:var(--blue-dark);}
+  tbody tr:hover td, tbody tr:hover th{background:#e4edf9;}
+  .empty-state{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:0.85rem;
+    padding:30px 10px;
+  }
+  details.info summary{
+    cursor:pointer;
+    font-size:0.85rem;
+    color:var(--blue-dark);
+    font-weight:600;
+  }
+  details.info p, details.info li{font-size:0.82rem;color:var(--text-muted);}
+  .status{font-size:0.82rem;margin-top:8px;}
+  .status.error{color:var(--red);}
+  .status.ok{color:#2f7a3d;}
+  #syncStatus{margin:-2px 0 8px 2px;}
+  #syncStatus.sync-error{color:var(--red);}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <button id="menuToggleBtn" class="menu-toggle" type="button" aria-expanded="true" aria-controls="menuRegion">
+    <span class="chevron">▸</span> Menu
+  </button>
+</div>
+<div id="syncStatus" class="small-note"></div>
+
+<div id="menuRegion">
+
+<div class="card" id="cacheCard" style="display:none;">
+  <div class="cache-info">
+    <span id="cacheText"></span>
+    <div class="row" style="gap:6px;">
+      <button class="secondary" id="loadCacheBtn">Opnieuw openen</button>
+      <button class="secondary" id="clearCacheBtn">Wissen</button>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="loadCard">
+  <h2>CSV laden</h2>
+  <div class="row">
+    <button id="pickFileBtn">Bestand kiezen</button>
+    <button class="secondary" id="togglePasteBtn">CSV-tekst plakken</button>
+  </div>
+  <input type="file" id="fileInput" accept=".csv,text/csv,text/plain">
+  <div id="dropZone" class="drop-zone">Of sleep hier een CSV-bestand naartoe</div>
+  <div id="pasteArea" class="hidden" style="margin-top:10px;">
+    <textarea id="pasteText" placeholder="Plak hier de inhoud van je CSV-bestand..."></textarea>
+    <div class="row" style="margin-top:8px;">
+      <button id="processPasteBtn">Verwerken</button>
+    </div>
+  </div>
+  <div id="loadStatus" class="status"></div>
+  <div class="small-note">
+    Tip: kies je CSV via de bestandskiezer van je toestel — Google Drive, Dropbox of OneDrive
+    verschijnen daar meestal als locatie als je die app hebt geïnstalleerd.
+  </div>
+</div>
+
+<div class="card hidden" id="mappingCard">
+  <h2>Kolommen koppelen</h2>
+  <div class="map-grid" id="mapGrid"></div>
+  <div class="row" style="margin-top:12px;">
+    <button id="applyMapBtn">Toepassen</button>
+    <button class="secondary" id="cancelMapBtn">Annuleren</button>
+  </div>
+  <div class="map-error hidden" id="mapError"></div>
+</div>
+
+<div class="card hidden" id="filtersCard">
+  <h2>Filters</h2>
+  <div class="filters" id="filtersGrid"></div>
+</div>
+
+</div>
+
+<div class="card hidden" id="tableCard">
+  <div class="row" style="justify-content:space-between;margin-bottom:10px;">
+    <h2 style="margin:0;">Tabel<span id="tableKlantLabel" class="klant-label"></span></h2>
+    <div class="row" style="gap:6px;">
+      <select id="valueFormatSelect" style="width:auto;font-size:0.78rem;padding:5px 8px;">
+        <option value="raw">Waarden</option>
+        <option value="div1000">Waarden ÷ 1000</option>
+      </select>
+      <button class="secondary" id="editMapBtn" style="font-size:0.78rem;padding:5px 10px;">Kolommen aanpassen</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="dataTable"></table>
+  </div>
+</div>
+
+<div class="card">
+  <details class="info">
+    <summary>Over dit tool / CSV-formaat</summary>
+    <p>Dit tool verwerkt een CSV in "lange" vorm: één rij per combinatie van (optioneel) Week,
+    Klant, Kleur en Waarde (percentage of aantal). De exacte kolomnamen mogen per export
+    verschillen — het tool probeert ze automatisch te herkennen en je kunt de koppeling altijd
+    handmatig aanpassen via "Kolommen aanpassen".</p>
+    <p>De tabel toont Kleur verticaal (rijen) en Week horizontaal (kolommen). Kies je bij Klant
+    een specifieke klant, dan zie je diens waarden. Bij "Alle klanten" wordt per cel het
+    gemiddelde getoond over alle klanten die data hebben voor die combinatie.</p>
+    <p>Alle verwerking gebeurt lokaal in je browser. De laatst geladen CSV wordt bewaard op dit
+    toestel, zodat je 'm bij het opnieuw openen direct terugziet. Is Firebase gekoppeld (zie de
+    regel bovenaan onder de Menu-knop), dan wordt de data ook daar opgeslagen: kies je op je
+    desktop een bestand, dan zie je diezelfde data automatisch terug op je mobiel — zonder daar
+    zelf een bestand te hoeven kiezen. Een nieuw gekozen bestand overschrijft steeds het vorige.</p>
+  </details>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CACHE_KEY = "kleurmix_viewer_cache_v1";
+  var MAP_PREF_PREFIX = "kleurmix_viewer_map_";
+
+  var state = {
+    headers: [],
+    rawRows: [],
+    mapping: {week:null, klant:null, kleur:null, waarde:null},
+    index: null,      // nested lookup: index[week][klant][kleur] = value
+    weekList: [],
+    klantList: [],
+    kleurList: [],
+    filters: {weekFrom:null, weekTo:null, klant:"__ALL__", kleur:"__ALL__"},
+    dataReady: false,
+    menuExpanded: true,
+    valueFormat: "raw" // "raw" of "div1000"
+  };
+
+  // ---------- Firebase (optioneel: deelt data tussen apparaten) ----------
+  // Vul je eigen Firebase-configuratie in (Firebase Console > Projectinstellingen >
+  // Algemeen > Jouw apps > SDK-configuratie). Zolang apiKey/projectId leeg zijn,
+  // werkt het tool gewoon lokaal, precies zoals voorheen.
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyALvYmBmOMNqeADWV1Ve_LDXdODMVWgPWQ",
+    authDomain: "klanten-viewer.firebaseapp.com",
+    projectId: "klanten-viewer",
+    storageBucket: "klanten-viewer.firebasestorage.app",
+    messagingSenderId: "361427943609",
+    appId: "1:361427943609:web:0224da3d879fb75a845b68"
+  };
+  var FIRESTORE_COLLECTION = "klantenViewer";
+  var FIRESTORE_DOC = "latest";
+  var firestoreDb = null;
+
+  function setSyncStatus(msg, type){
+    var syncEl = document.getElementById("syncStatus");
+    if (!syncEl) return;
+    syncEl.textContent = msg || "";
+    syncEl.className = "small-note" + (type === "error" ? " sync-error" : "");
+  }
+
+  (function initFirebase(){
+    if (!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.projectId) return; // niet ingesteld
+    if (typeof firebase === "undefined") return; // SDK kon niet laden (bv. geen internet)
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      firestoreDb = firebase.firestore();
+    }catch(e){ console.error("Firebase kon niet starten", e); firestoreDb = null; }
+  })();
+
+  // slaat de ruwe CSV op als "de" gedeelde dataset — overschrijft altijd de vorige
+  function saveToFirestore(text){
+    if (!firestoreDb) return;
+    firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).set({
+      csv: text,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(){
+      setSyncStatus("🔄 Opgeslagen in Firebase — ook zichtbaar op je andere apparaten.");
+    }).catch(function(e){
+      console.error("Firestore opslaan mislukt", e);
+      setSyncStatus("Opslaan in Firebase is mislukt (zie console).", "error");
+    });
+  }
+
+  function loadFromFirestore(){
+    if (!firestoreDb) return Promise.resolve(null);
+    return firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).get()
+      .then(function(doc){ return (doc.exists && doc.data().csv) ? doc.data().csv : null; })
+      .catch(function(e){ console.error("Firestore laden mislukt", e); return null; });
+  }
+
+  // ---------- helpers ----------
+  function norm(s){
+    return String(s||"")
+      .toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g,"")
+      .replace(/[^a-z0-9%]/g,"")
+      .trim();
+  }
+
+  function el(tag, attrs, children){
+    var e = document.createElement(tag);
+    attrs = attrs || {};
+    for (var k in attrs){
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "html") e.innerHTML = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (children||[]).forEach(function(c){ e.appendChild(c); });
+    return e;
+  }
+
+  function setStatus(msg, type){
+    var s = document.getElementById("loadStatus");
+    s.textContent = msg || "";
+    s.className = "status" + (type ? " " + type : "");
+  }
+
+  // ---------- CSV parsing ----------
+  function detectDelimiter(sampleLine){
+    var candidates = [",",";","\t"];
+    var best = ",", bestCount = -1;
+    candidates.forEach(function(d){
+      var count = sampleLine.split(d).length;
+      if (count > bestCount){ bestCount = count; best = d; }
+    });
+    return best;
+  }
+
+  function parseCSV(text){
+    text = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    while (text.length && text[0] === "﻿") text = text.slice(1); // BOM
+    var firstLine = text.split("\n")[0] || "";
+    var delim = detectDelimiter(firstLine);
+    var rows = [];
+    var row = [];
+    var field = "";
+    var inQuotes = false;
+    for (var i=0;i<text.length;i++){
+      var c = text[i];
+      if (inQuotes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delim){ row.push(field); field=""; }
+        else if (c === "\n"){ row.push(field); rows.push(row); row=[]; field=""; }
+        else field += c;
+      }
+    }
+    if (field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+    // drop trailing fully-empty rows
+    while (rows.length && rows[rows.length-1].every(function(v){return v.trim()==="";})) rows.pop();
+    return rows;
+  }
+
+  function rowsToObjects(rows){
+    if (!rows.length) return {headers:[], objects:[]};
+    var headers = rows[0].map(function(h){ return h.trim(); });
+    var objects = [];
+    for (var r=1;r<rows.length;r++){
+      var raw = rows[r];
+      if (raw.every(function(v){return v.trim()==="";})) continue;
+      var obj = {};
+      headers.forEach(function(h,i){ obj[h] = raw[i] !== undefined ? raw[i].trim() : ""; });
+      objects.push(obj);
+    }
+    return {headers:headers, objects:objects};
+  }
+
+  // ---------- column auto-detect ----------
+  var ROLE_KEYWORDS = {
+    week: ["weeknummer","weeknr","week","wk"],
+    klant: ["klant","klantnaam","customer","customername","account","relatie"],
+    kleur: ["kleur","color","colour","kleurnaam","serie","series","collectie","collection","productserie","lijn","soort","type","variant"],
+    waarde: ["waarde","value","percentage","percent","aantal","count","amount","%"]
+  };
+  var ROLE_ORDER = ["week","klant","kleur","waarde"];
+
+  function autoDetectMapping(headers){
+    var mapping = {week:null, klant:null, kleur:null, waarde:null};
+    var used = {};
+    ROLE_ORDER.forEach(function(role){
+      var kws = ROLE_KEYWORDS[role];
+      for (var i=0;i<headers.length;i++){
+        var h = headers[i];
+        if (used[h]) continue;
+        var nh = norm(h);
+        var match = kws.some(function(kw){ return nh.indexOf(norm(kw)) !== -1; });
+        if (match){ mapping[role] = h; used[h] = true; break; }
+      }
+    });
+    return mapping;
+  }
+
+  function mapPrefKey(headers){
+    return MAP_PREF_PREFIX + headers.slice().sort().join("|").toLowerCase();
+  }
+
+  function saveMappingPref(headers, mapping){
+    try{ localStorage.setItem(mapPrefKey(headers), JSON.stringify(mapping)); }catch(e){}
+  }
+  function loadMappingPref(headers){
+    try{
+      var raw = localStorage.getItem(mapPrefKey(headers));
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  // ---------- cache ----------
+  function saveCache(text){
+    try{
+      localStorage.setItem(CACHE_KEY, JSON.stringify({text:text, savedAt: new Date().toISOString()}));
+    }catch(e){}
+  }
+  function loadCacheMeta(){
+    try{
+      var raw = localStorage.getItem(CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function clearCache(){
+    try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
+    document.getElementById("cacheCard").style.display = "none";
+  }
+
+  function refreshCacheCard(){
+    var meta = loadCacheMeta();
+    var card = document.getElementById("cacheCard");
+    if (!meta){ card.style.display = "none"; return; }
+    card.style.display = "";
+    var d = new Date(meta.savedAt);
+    var dstr = isNaN(d.getTime()) ? "" : d.toLocaleString("nl-NL");
+    document.getElementById("cacheText").textContent = "Laatst geladen bestand beschikbaar (" + dstr + ").";
+  }
+
+  // ---------- value formatting ----------
+  function isEmptyValue(raw){
+    if (raw === undefined || raw === null) return true;
+    var t = String(raw).trim();
+    if (t === "") return true;
+    if (t === "-" || t === "–" || t === "—") return true;
+    var numPart = t.replace("%","").replace(",",".").trim();
+    if (numPart !== "" && !isNaN(parseFloat(numPart)) && parseFloat(numPart) === 0) return true;
+    return false;
+  }
+  function formatValue(raw){
+    if (isEmptyValue(raw)) return "–";
+    return String(raw).trim();
+  }
+
+  // combine several raw values (e.g. across a week range) into one display value
+  function aggregateValues(rawList){
+    var nonEmpty = rawList.filter(function(v){ return !isEmptyValue(v); });
+    if (!nonEmpty.length) return {display:"–", count:0};
+    if (nonEmpty.length === 1) return {display: formatValue(nonEmpty[0]), count:1};
+
+    var suffix = String(nonEmpty[0]).indexOf("%") !== -1 ? "%" : "";
+    var nums = nonEmpty.map(function(v){
+      return parseFloat(String(v).replace("%","").replace(",",".").trim());
+    });
+    var allNumeric = nums.every(function(n){ return !isNaN(n); });
+    if (allNumeric){
+      var avg = nums.reduce(function(a,b){ return a+b; }, 0) / nums.length;
+      var rounded = Math.round(avg * 10) / 10;
+      if (rounded === Math.round(rounded)) rounded = Math.round(rounded);
+      return {display: rounded + suffix, count: nonEmpty.length, isAvg:true};
+    }
+    return {display: String(nonEmpty[nonEmpty.length-1]).trim(), count: nonEmpty.length};
+  }
+
+  // past het gekozen weergaveformaat toe (ruwe waarde of gedeeld door 1000)
+  function applyValueFormat(display){
+    if (display === "–" || state.valueFormat !== "div1000") return display;
+    var suffix = display.indexOf("%") !== -1 ? "%" : "";
+    var num = parseFloat(String(display).replace("%","").replace(",",".").trim());
+    if (isNaN(num)) return display;
+    var divided = Math.round(num/1000); // afgerond op een heel getal
+    return divided + suffix;
+  }
+
+  // numeric-aware sort: ascending by default, descending when desc=true
+  function smartSort(arr, desc){
+    var copy = arr.slice();
+    var numeric = copy.every(function(v){
+      return v !== "__ALL__" && !isNaN(parseFloat(String(v).replace(",",".")));
+    });
+    if (numeric){
+      copy.sort(function(a,b){
+        var na = parseFloat(String(a).replace(",",".")), nb = parseFloat(String(b).replace(",","."));
+        return desc ? nb-na : na-nb;
+      });
+    } else {
+      copy.sort(function(a,b){ return desc ? b.localeCompare(a,"nl") : a.localeCompare(b,"nl"); });
+    }
+    return copy;
+  }
+
+  // ---------- build index ----------
+  function buildIndex(){
+    var m = state.mapping;
+    var index = {};
+    var weekSet = [], weekSeen = {};
+    var klantSet = [], klantSeen = {};
+    var kleurSet = [], kleurSeen = {};
+
+    state.rawRows.forEach(function(row){
+      var week = m.week ? (row[m.week] || "").trim() : "__ALL__";
+      var klant = (row[m.klant] || "").trim();
+      var kleur = (row[m.kleur] || "").trim();
+      var waarde = row[m.waarde];
+
+      if (!klant || !kleur) return; // skip incomplete rows
+
+      if (m.week && !weekSeen[week]){ weekSeen[week]=true; weekSet.push(week); }
+      if (!klantSeen[klant]){ klantSeen[klant]=true; klantSet.push(klant); }
+      if (!kleurSeen[kleur]){ kleurSeen[kleur]=true; kleurSet.push(kleur); }
+
+      if (!index[week]) index[week] = {};
+      if (!index[week][klant]) index[week][klant] = {};
+      index[week][klant][kleur] = waarde;
+    });
+
+    weekSet = m.week ? smartSort(weekSet, false) : ["__ALL__"]; // week oplopend
+    klantSet.sort(function(a,b){ return a.localeCompare(b,"nl"); });
+    // kleur: keep first-appearance order (usually matches source system's intended order)
+
+    state.index = index;
+    state.weekList = weekSet;
+    state.klantList = klantSet;
+    state.kleurList = kleurSet;
+  }
+
+  // ---------- mapping UI ----------
+  function showMappingUI(){
+    var grid = document.getElementById("mapGrid");
+    grid.innerHTML = "";
+    var roleLabels = {
+      week: "Week (optioneel)",
+      klant: "Klant *",
+      kleur: "Kleur *",
+      waarde: "Waarde (percentage/aantal) *"
+    };
+    var optionalRoles = {week:true};
+
+    ROLE_ORDER.forEach(function(role){
+      var field = el("div", {class:"map-field"});
+      field.appendChild(el("label", {text: roleLabels[role]}));
+      var sel = el("select", {id:"map_"+role});
+      if (optionalRoles[role]){
+        sel.appendChild(el("option", {value:"", text:"(geen)"}));
+      } else {
+        sel.appendChild(el("option", {value:"", text:"— kies kolom —"}));
+      }
+      state.headers.forEach(function(h){
+        var opt = el("option", {value:h, text:h});
+        if (state.mapping[role] === h) opt.setAttribute("selected","selected");
+        sel.appendChild(opt);
+      });
+      field.appendChild(sel);
+      grid.appendChild(field);
+    });
+
+    document.getElementById("mapError").classList.add("hidden");
+    document.getElementById("mappingCard").classList.remove("hidden");
+  }
+
+  function applyMappingFromUI(){
+    var mapping = {};
+    ROLE_ORDER.forEach(function(role){
+      var v = document.getElementById("map_"+role).value;
+      mapping[role] = v || null;
+    });
+    if (!mapping.klant || !mapping.kleur || !mapping.waarde){
+      var errEl = document.getElementById("mapError");
+      errEl.textContent = "Klant, Kleur en Waarde zijn verplicht om de tabel te kunnen bouwen.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    state.mapping = mapping;
+    saveMappingPref(state.headers, mapping);
+    document.getElementById("mappingCard").classList.add("hidden");
+    buildIndex();
+    initFilters();
+    state.dataReady = true;
+    state.menuExpanded = false; // meteen inklappen, matrix krijgt de ruimte
+    updateFiltersCardRelevance();
+    updateMenuVisibility();
+    renderAll();
+  }
+
+  // ---------- filters UI ----------
+  function initFilters(){
+    var f = state.filters;
+    f.weekFrom = state.weekList.length ? state.weekList[0] : "__ALL__";
+    f.weekTo = state.weekList.length ? state.weekList[state.weekList.length-1] : "__ALL__";
+    f.klant = "__ALL__";
+    f.kleur = "__ALL__";
+    f.showWeekTotal = true;
+    renderFiltersUI();
+  }
+
+  // bouwt een native dropdown-filter ("Alle X" + los elke waarde) — ondersteunt zoeken op
+  // de 1e letters vanzelf, omdat dit een gewone <select> is (browser-ingebouwd gedrag)
+  function buildDropdownFilter(containerId, filterKey, allLabel, items){
+    var container = document.getElementById(containerId);
+    container.innerHTML = "";
+    var sel = el("select", {id: containerId + "_select"});
+    sel.appendChild(el("option", {value:"__ALL__", text: allLabel}));
+    items.forEach(function(item){
+      var opt = el("option", {value:item, text:item});
+      if (state.filters[filterKey] === item) opt.setAttribute("selected","selected");
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", function(){
+      state.filters[filterKey] = sel.value;
+      renderTable();
+    });
+    container.appendChild(sel);
+  }
+
+  function weeksInSelectedRange(){
+    if (state.weekList.length <= 1) return state.weekList.slice();
+    var fromIdx = state.weekList.indexOf(state.filters.weekFrom);
+    var toIdx = state.weekList.indexOf(state.filters.weekTo);
+    if (fromIdx === -1) fromIdx = 0;
+    if (toIdx === -1) toIdx = state.weekList.length - 1;
+    if (fromIdx > toIdx){ var t = fromIdx; fromIdx = toIdx; toIdx = t; }
+    return state.weekList.slice(fromIdx, toIdx+1);
+  }
+
+  function renderFiltersUI(){
+    var grid = document.getElementById("filtersGrid");
+    grid.innerHTML = "";
+
+    // Klant (bovenaan) — dropdown, type de 1e letters om te zoeken
+    var klantField = el("div", {});
+    klantField.appendChild(el("label", {text:"Klant"}));
+    var klantContainer = el("div", {id:"klant_dropdown"});
+    klantField.appendChild(klantContainer);
+    grid.appendChild(klantField);
+
+    // Week: van - tot (daaronder) — bepaalt welke weken als kolom verschijnen, standaard alle weken
+    if (state.mapping.week){
+      var weekField = el("div", {});
+      weekField.appendChild(el("label", {text:"Week (van – tot, standaard: alle weken)"}));
+      var weekRow = el("div", {class:"week-range-row"});
+      var weekFromSel = el("select", {id:"filter_week_from"});
+      var weekToSel = el("select", {id:"filter_week_to"});
+      state.weekList.forEach(function(w){
+        var o1 = el("option", {value:w, text:w});
+        if (state.filters.weekFrom === w) o1.setAttribute("selected","selected");
+        weekFromSel.appendChild(o1);
+        var o2 = el("option", {value:w, text:w});
+        if (state.filters.weekTo === w) o2.setAttribute("selected","selected");
+        weekToSel.appendChild(o2);
+      });
+      weekFromSel.addEventListener("change", function(){
+        state.filters.weekFrom = weekFromSel.value;
+        renderTable();
+      });
+      weekToSel.addEventListener("change", function(){
+        state.filters.weekTo = weekToSel.value;
+        renderTable();
+      });
+      weekRow.appendChild(weekFromSel);
+      weekRow.appendChild(el("span", {class:"week-sep", text:"t/m"}));
+      weekRow.appendChild(weekToSel);
+      weekField.appendChild(weekRow);
+
+      var totalLabel = el("label", {class:"week-total-toggle"});
+      var totalCb = el("input", {type:"checkbox", id:"week_total_cb"});
+      totalCb.checked = !!state.filters.showWeekTotal;
+      totalCb.addEventListener("change", function(){
+        state.filters.showWeekTotal = totalCb.checked;
+        renderTable();
+      });
+      totalLabel.appendChild(totalCb);
+      totalLabel.appendChild(document.createTextNode(" Toon totaalkolom"));
+      weekField.appendChild(totalLabel);
+
+      grid.appendChild(weekField);
+    }
+
+    // Kleur (daaronder) — dropdown, type de 1e letters om te zoeken
+    var kleurField = el("div", {});
+    kleurField.appendChild(el("label", {text:"Kleur"}));
+    var kleurContainer = el("div", {id:"kleur_dropdown"});
+    kleurField.appendChild(kleurContainer);
+    grid.appendChild(kleurField);
+
+    buildDropdownFilter("klant_dropdown", "klant", "Alle klanten", state.klantList);
+    buildDropdownFilter("kleur_dropdown", "kleur", "Alle kleuren", state.kleurList);
+  }
+
+  // filtersCard toont zichzelf alleen als er data is (los van in-/uitgeklapt menu)
+  function updateFiltersCardRelevance(){
+    document.getElementById("filtersCard").classList.toggle("hidden", !state.dataReady);
+  }
+
+  // het hele menu (cache/laden/koppelen/filters) in- of uitklappen, van menu-knop tot aan de matrix
+  function updateMenuVisibility(){
+    var forceOpen = !state.dataReady; // zonder data moet het menu zichtbaar blijven (laadstap nodig)
+    var show = forceOpen || state.menuExpanded;
+    document.getElementById("menuRegion").classList.toggle("hidden", !show);
+    var btn = document.getElementById("menuToggleBtn");
+    btn.disabled = forceOpen;
+    btn.setAttribute("aria-expanded", show ? "true" : "false");
+    btn.classList.toggle("open", show);
+  }
+
+  // ---------- table rendering ----------
+  // waarden voor één cel (kleur x week), verzameld over de geselecteerde klant(en)
+  function getValsForCell(week, kleur, klanten){
+    var idx = state.index;
+    return klanten.map(function(k){
+      return idx[week] && idx[week][k] ? idx[week][k][kleur] : undefined;
+    });
+  }
+
+  // laat kleur-rijen en week-kolommen weg die, gegeven de huidige filters, nergens een waarde hebben
+  function pruneEmptyRowsAndCols(kleurCandidates, weekCandidates, klanten){
+    var weeksMetData = weekCandidates.filter(function(w){
+      return kleurCandidates.some(function(kleur){
+        return getValsForCell(w, kleur, klanten).some(function(v){ return !isEmptyValue(v); });
+      });
+    });
+    var kleurenMetData = kleurCandidates.filter(function(kleur){
+      return weeksMetData.some(function(w){
+        return getValsForCell(w, kleur, klanten).some(function(v){ return !isEmptyValue(v); });
+      });
+    });
+    return {weken: weeksMetData, kleuren: kleurenMetData};
+  }
+
+  function renderTable(){
+    var table = document.getElementById("dataTable");
+    table.innerHTML = "";
+    var tableCard = document.getElementById("tableCard");
+
+    if (!state.index){ tableCard.classList.add("hidden"); return; }
+    tableCard.classList.remove("hidden");
+
+    var f = state.filters;
+    var klantLabel = document.getElementById("tableKlantLabel");
+    klantLabel.textContent = "— " + (f.klant === "__ALL__" ? "Alle klanten" : f.klant);
+    var klanten = f.klant === "__ALL__" ? state.klantList : [f.klant];
+    var kleurCandidates = f.kleur === "__ALL__" ? state.kleurList : [f.kleur];
+    var weekCandidates = weeksInSelectedRange();
+
+    var pruned = pruneEmptyRowsAndCols(kleurCandidates, weekCandidates, klanten);
+    var kleurRows = pruned.kleuren;
+    var weekCols = pruned.weken;
+
+    if (!klanten.length || !kleurRows.length || !weekCols.length){
+      var emptyRow = el("tr", {});
+      var emptyTd = el("td", {text:"Geen data gevonden voor deze filters.", class:"empty-state"});
+      emptyTd.setAttribute("colspan", "10");
+      emptyRow.appendChild(emptyTd);
+      var tbodyEmpty = el("tbody", {});
+      tbodyEmpty.appendChild(emptyRow);
+      table.appendChild(tbodyEmpty);
+      return;
+    }
+
+    var showTotal = !!(state.mapping.week && f.showWeekTotal);
+
+    var thead = el("thead", {});
+    var weekRow = el("tr", {class:"week-row"});
+    weekRow.appendChild(el("th", {class:"corner", text:""}));
+    weekCols.forEach(function(w){
+      weekRow.appendChild(el("th", {text: w === "__ALL__" ? "Alle weken" : w}));
+    });
+    if (showTotal) weekRow.appendChild(el("th", {class:"total-col", text:"Totaal"}));
+    thead.appendChild(weekRow);
+    table.appendChild(thead);
+
+    var tbody = el("tbody", {});
+    kleurRows.forEach(function(kleur){
+      var tr = el("tr", {});
+      tr.appendChild(el("th", {text:kleur}));
+      var totalSum = 0, totalHasValue = false, totalSuffix = "";
+      weekCols.forEach(function(w){
+        var agg = aggregateValues(getValsForCell(w, kleur, klanten));
+        var td = el("td", {text: applyValueFormat(agg.display)});
+        if (agg.display === "–") td.classList.add("empty");
+        if (agg.count > 1) td.setAttribute("title", (agg.isAvg ? "Gemiddelde" : "Meest recente waarde") + " over " + agg.count + " klanten");
+        tr.appendChild(td);
+        if (agg.display !== "–"){
+          var num = parseFloat(String(agg.display).replace("%","").replace(",",".").trim());
+          if (!isNaN(num)){
+            totalSum += num;
+            totalHasValue = true;
+            if (String(agg.display).indexOf("%") !== -1) totalSuffix = "%";
+          }
+        }
+      });
+      if (showTotal){
+        var totalDisplayRaw = totalHasValue ? (Math.round(totalSum * 100) / 100) + totalSuffix : "–";
+        var totalTd = el("td", {class:"total-col", text: applyValueFormat(totalDisplayRaw)});
+        if (totalDisplayRaw === "–") totalTd.classList.add("empty");
+        totalTd.setAttribute("title", "Som over de getoonde weken");
+        tr.appendChild(totalTd);
+      }
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  }
+
+  function renderAll(){
+    renderTable();
+  }
+
+  // ---------- load pipeline ----------
+  function loadFromText(text, opts){
+    opts = opts || {};
+    try{
+      var rows = parseCSV(text);
+      var parsed = rowsToObjects(rows);
+      if (!parsed.headers.length || !parsed.objects.length){
+        setStatus("Kon geen geldige data vinden in dit bestand.", "error");
+        return;
+      }
+      state.headers = parsed.headers;
+      state.rawRows = parsed.objects;
+
+      var savedMapping = loadMappingPref(state.headers);
+      var mapping = savedMapping || autoDetectMapping(state.headers);
+      state.mapping = mapping;
+
+      if (opts.cache !== false) saveCache(text);
+      refreshCacheCard();
+
+      var complete = mapping.klant && mapping.kleur && mapping.waarde;
+      if (!complete){
+        state.dataReady = false;
+        updateFiltersCardRelevance();
+        updateMenuVisibility();
+        setStatus("Bestand geladen (" + state.rawRows.length + " rijen). Koppel de kolommen hieronder.", "ok");
+        showMappingUI();
+        document.getElementById("tableCard").classList.add("hidden");
+      } else {
+        setStatus("Bestand geladen: " + state.rawRows.length + " rijen.", "ok");
+        document.getElementById("mappingCard").classList.add("hidden");
+        buildIndex();
+        initFilters();
+        state.dataReady = true;
+        state.menuExpanded = false; // meteen inklappen, matrix krijgt de ruimte
+        updateFiltersCardRelevance();
+        updateMenuVisibility();
+        renderAll();
+        if (opts.skipFirestoreSave !== true) saveToFirestore(text);
+      }
+    } catch(err){
+      setStatus("Fout bij verwerken van CSV: " + err.message, "error");
+    }
+  }
+
+  // ---------- wiring ----------
+  document.getElementById("pickFileBtn").addEventListener("click", function(){
+    document.getElementById("fileInput").click();
+  });
+
+  document.getElementById("fileInput").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ loadFromText(String(reader.result)); };
+    reader.onerror = function(){ setStatus("Kon bestand niet lezen.", "error"); };
+    reader.readAsText(file, "UTF-8");
+  });
+
+  var dropZone = document.getElementById("dropZone");
+  ["dragenter","dragover"].forEach(function(evt){
+    dropZone.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      dropZone.classList.add("drag");
+    });
+  });
+  ["dragleave","drop"].forEach(function(evt){
+    dropZone.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      dropZone.classList.remove("drag");
+    });
+  });
+  dropZone.addEventListener("drop", function(e){
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ loadFromText(String(reader.result)); };
+    reader.readAsText(file, "UTF-8");
+  });
+
+  document.getElementById("togglePasteBtn").addEventListener("click", function(){
+    document.getElementById("pasteArea").classList.toggle("hidden");
+  });
+  document.getElementById("processPasteBtn").addEventListener("click", function(){
+    var text = document.getElementById("pasteText").value;
+    if (!text.trim()){ setStatus("Plak eerst CSV-tekst.", "error"); return; }
+    loadFromText(text);
+  });
+
+  document.getElementById("applyMapBtn").addEventListener("click", applyMappingFromUI);
+  document.getElementById("cancelMapBtn").addEventListener("click", function(){
+    document.getElementById("mappingCard").classList.add("hidden");
+  });
+  document.getElementById("valueFormatSelect").addEventListener("change", function(e){
+    state.valueFormat = e.target.value;
+    renderTable();
+  });
+
+  document.getElementById("editMapBtn").addEventListener("click", function(){
+    state.menuExpanded = true; // menu moet open staan om de koppeling te tonen
+    updateMenuVisibility();
+    showMappingUI();
+  });
+
+  document.getElementById("loadCacheBtn").addEventListener("click", function(){
+    var meta = loadCacheMeta();
+    if (meta && meta.text) loadFromText(meta.text, {cache:false});
+  });
+  document.getElementById("clearCacheBtn").addEventListener("click", clearCache);
+
+  document.getElementById("menuToggleBtn").addEventListener("click", function(){
+    if (!state.dataReady) return; // dan staat het menu sowieso open (forceOpen)
+    state.menuExpanded = !state.menuExpanded;
+    updateMenuVisibility();
+  });
+
+  // init
+  refreshCacheCard();
+  updateFiltersCardRelevance();
+  updateMenuVisibility();
+
+  if (firestoreDb){
+    setSyncStatus("Bezig met ophalen van gedeelde data uit Firebase...");
+    loadFromFirestore().then(function(csvText){
+      if (csvText){
+        loadFromText(csvText, {cache:true, skipFirestoreSave:true});
+        setSyncStatus("🔄 Gekoppeld aan Firebase — laatst gedeelde data geladen.");
+      } else {
+        setSyncStatus("🔄 Gekoppeld aan Firebase — nog geen gedeelde data. Kies hieronder een bestand.");
+      }
+    });
+  } else {
+    setSyncStatus("Geen Firebase ingesteld — gegevens blijven alleen op dit toestel.");
+  }
+})();
+</script>
+</body>
+</html>
