@@ -290,6 +290,8 @@
 
 <div id="menuRegion">
 
+<div id="fileLoadSection">
+
 <div class="card" id="cacheCard" style="display:none;">
   <div class="cache-info">
     <span id="cacheText"></span>
@@ -320,6 +322,10 @@
     verschijnen daar meestal als locatie als je die app hebt geïnstalleerd.
   </div>
 </div>
+
+</div>
+
+<button class="secondary hidden" id="toggleFileLoadBtn" type="button" style="font-size:0.78rem;padding:5px 10px;margin-bottom:10px;">Ander bestand laden</button>
 
 <div class="card hidden" id="mappingCard">
   <h2>Kolommen koppelen</h2>
@@ -390,6 +396,7 @@
     filters: {weekFrom:null, weekTo:null, klant:"__ALL__", kleur:"__ALL__"},
     dataReady: false,
     menuExpanded: true,
+    fileLoadOpen: false,
     valueFormat: "raw" // "raw" of "div1000"
   };
 
@@ -857,6 +864,14 @@
     document.getElementById("filtersCard").classList.toggle("hidden", !state.dataReady);
   }
 
+  // zodra er data is (bv. via Firebase), verberg "CSV laden" — toon alleen een klein knopje om het weer te openen
+  function updateFileLoadSectionVisibility(){
+    var showSection = !state.dataReady || state.fileLoadOpen;
+    document.getElementById("fileLoadSection").classList.toggle("hidden", !showSection);
+    document.getElementById("toggleFileLoadBtn").classList.toggle("hidden", !state.dataReady);
+    document.getElementById("toggleFileLoadBtn").textContent = state.fileLoadOpen ? "Bestand-sectie verbergen" : "Ander bestand laden";
+  }
+
   // het hele menu (cache/laden/koppelen/filters) in- of uitklappen, van menu-knop tot aan de matrix
   function updateMenuVisibility(){
     var forceOpen = !state.dataReady; // zonder data moet het menu zichtbaar blijven (laadstap nodig)
@@ -994,6 +1009,7 @@
       if (!complete){
         state.dataReady = false;
         updateFiltersCardRelevance();
+        updateFileLoadSectionVisibility();
         updateMenuVisibility();
         setStatus("Bestand geladen (" + state.rawRows.length + " rijen). Koppel de kolommen hieronder.", "ok");
         showMappingUI();
@@ -1005,7 +1021,9 @@
         initFilters();
         state.dataReady = true;
         state.menuExpanded = false; // meteen inklappen, matrix krijgt de ruimte
+        state.fileLoadOpen = false; // bestand-sectie weer verbergen na succesvol laden
         updateFiltersCardRelevance();
+        updateFileLoadSectionVisibility();
         updateMenuVisibility();
         renderAll();
         if (opts.skipFirestoreSave !== true) saveToFirestore(text);
@@ -1086,9 +1104,15 @@
     updateMenuVisibility();
   });
 
+  document.getElementById("toggleFileLoadBtn").addEventListener("click", function(){
+    state.fileLoadOpen = !state.fileLoadOpen;
+    updateFileLoadSectionVisibility();
+  });
+
   // init
   refreshCacheCard();
   updateFiltersCardRelevance();
+  updateFileLoadSectionVisibility();
   updateMenuVisibility();
 
   if (firestoreDb){
