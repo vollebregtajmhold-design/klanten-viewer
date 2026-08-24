@@ -371,7 +371,7 @@
   <div class="row" style="gap:6px;margin-top:10px;">
     <select id="valueFormatSelect" style="width:auto;font-size:0.78rem;padding:5px 8px;">
       <option value="raw">Waarden</option>
-      <option value="div1000">Waarden ÷ 1000</option>
+      <option value="div1000" selected>Waarden ÷ 1000</option>
     </select>
     <button class="secondary" id="editMapBtn" style="font-size:0.78rem;padding:5px 10px;">Kolommen aanpassen</button>
   </div>
@@ -423,7 +423,7 @@
     dataReady: false,
     menuExpanded: true,
     fileLoadOpen: false,
-    valueFormat: "raw" // "raw" of "div1000"
+    valueFormat: "div1000" // "raw" of "div1000"
   };
 
   // ---------- Firebase (optioneel: deelt data tussen apparaten) ----------
